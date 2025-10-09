@@ -15,7 +15,7 @@ import UniformTypeIdentifiers
 let log = Logger(subsystem: "app.revolt.chat", category: "UserSettingsViews")
 
 func generateTOTPUrl(secret: String, email: String) -> String {
-    return "otpauth://totp/Revolt:\(email)?secret=\(secret)&issuer=Revolt"
+    return "otpauth://totp/Stoat:\(email)?secret=\(secret)&issuer=Stoat"
 }
 
 

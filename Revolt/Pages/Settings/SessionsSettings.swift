@@ -88,7 +88,7 @@ struct SessionView: View {
             platformType = Image(.androidLogo!)
             browserType = nil
         } else if sessionName.contains("on") { // in browser or on desktop
-            let types = try? /(?<browser>revolt desktop|[^ ]+) on (?<platform>.+)/.firstMatch(in: sessionName)
+            let types = try? /(?<browser>revolt|stoat desktop|[^ ]+) on (?<platform>.+)/.firstMatch(in: sessionName)
             
             if let types = types {
                 let platformName = types.output.platform.lowercased()
@@ -113,7 +113,7 @@ struct SessionView: View {
                     isBrowserTypeSystemImage = true
                 } else if browserName == "firefox" {
                     willSetBrowserType = Image(.firefoxLogo!)
-                } else if browserName == "revolt desktop" {
+                } else if browserName == "revolt desktop" || browserName == "stoat desktop" {
                     willSetBrowserType = Image(.monochromeDark!)
                 } else {
                     willSetBrowserType = Image(systemName: "questionmark")

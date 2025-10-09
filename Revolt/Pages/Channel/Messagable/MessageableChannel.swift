@@ -234,7 +234,7 @@ struct MessageableChannelView: View {
         Task(priority: .high) {
             if messages.isEmpty {
                 await loadMoreMessages(before: nil)
-            }
+           }
         }
         
         return messages
@@ -258,20 +258,20 @@ struct MessageableChannelView: View {
                         .frame(height: 4)
                 }
             } trailing: {
-                // TODO: finish
-//                if !selection.isEmpty {
-//                    HStack {
-//                        Button("Delete", role: .destructive) {
-//                            ()
-//                        }
-//                        
-//                        Button("Done", role: .cancel) {
-//                            withAnimation {
-//                                selection.removeAll()
-//                            }
-//                        }
-//                    }
-//                }
+                switch viewModel.channel {
+                    case .dm_channel, .group_dm_channel:
+                        AnyView(Button {
+                            viewState.currentChannel = .force_voicechannel(viewModel.channel.id)
+                        } label: {
+                            Image(systemName: "phone.fill")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 16, height: 16)
+                                .frame(width: 24, height: 24)
+                        })
+                    default:
+                        AnyView(EmptyView())
+                }
             }
             
             ZStack {
@@ -655,9 +655,9 @@ struct MessageWrapper<C: View>: View {
                 
                 Button {
                     if let server = viewModel.server {
-                        copyUrl(url: URL(string: "https://revolt.chat/app/server/\(server.id)/channel/\(viewModel.channel.id)/\(viewModel.message.id)")!)
+                        copyUrl(url: URL(string: "https://stoat.chat/server/\(server.id)/channel/\(viewModel.channel.id)/\(viewModel.message.id)")!)
                     } else {
-                        copyUrl(url: URL(string: "https://revolt.chat/app/channel/\(viewModel.channel.id)/\(viewModel.message.id)")!)
+                        copyUrl(url: URL(string: "https://stoat.chat/channel/\(viewModel.channel.id)/\(viewModel.message.id)")!)
                         
                     }
                 } label: {

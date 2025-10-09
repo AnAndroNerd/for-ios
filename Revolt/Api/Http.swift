@@ -280,6 +280,10 @@ struct HTTPClient {
     func createInvite(channel: String) async -> Result<Invite, RevoltError> {
         await req(method: .post, route: "/channels/\(channel)/invites")
     }
+    
+    func joinVoiceChannel(channel: String, node: String) async -> Result<VoiceChannelToken, RevoltError> {
+        await req(method: .post, route: "/channels/\(channel)/join_call", parameters: ["node": node])
+    }
 
     func fetchMember(server: String, member: String) async -> Result<Member, RevoltError> {
         await req(method: .get, route: "/servers/\(server)/members/\(member)")

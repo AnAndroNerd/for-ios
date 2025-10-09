@@ -71,6 +71,10 @@ public struct MessagePinnedSystemContent: Codable, Equatable {
     public var by: String
 }
 
+public struct CallStartedSystemContent: Codable, Equatable {
+    public var by: String
+}
+
 public enum SystemMessageContent: Equatable {
     case text(TextSystemMessageContent)
     case user_added(UserAddedSystemContent)
@@ -85,11 +89,12 @@ public enum SystemMessageContent: Equatable {
     case channel_ownership_changed(ChannelOwnershipChangedSystemContent)
     case message_pinned(MessagePinnedSystemContent)
     case message_unpinned(MessagePinnedSystemContent)
+    case call_started(CallStartedSystemContent)
 }
 
 extension SystemMessageContent: Codable {
     enum CodingKeys: String, CodingKey { case type }
-    enum Tag: String, Codable { case text, user_added, user_remove, user_joined, user_left, user_kicked, user_banned, channel_renamed, channel_description_changed, channel_icon_changed, channel_ownership_changed, message_pinned, message_unpinned }
+    enum Tag: String, Codable { case text, user_added, user_remove, user_joined, user_left, user_kicked, user_banned, channel_renamed, channel_description_changed, channel_icon_changed, channel_ownership_changed, message_pinned, message_unpinned, call_started }
     
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -122,8 +127,8 @@ extension SystemMessageContent: Codable {
                 self = .message_pinned(try singleValueContainer.decode(MessagePinnedSystemContent.self))
             case .message_unpinned:
                 self = .message_unpinned(try singleValueContainer.decode(MessagePinnedSystemContent.self))
-
-
+            case .call_started:
+                self = .call_started(try singleValueContainer.decode(CallStartedSystemContent.self))
         }
     }
     
@@ -169,6 +174,9 @@ extension SystemMessageContent: Codable {
                 try content.encode(to: encoder)
             case .message_unpinned(let content):
                 try tagContainer.encode(Tag.message_unpinned, forKey: .type)
+                try content.encode(to: encoder)
+            case .call_started(let content):
+                try tagContainer.encode(Tag.call_started, forKey: .type)
                 try content.encode(to: encoder)
 
         }

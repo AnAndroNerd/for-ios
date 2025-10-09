@@ -27,7 +27,7 @@ struct BotSettings: View {
             .listRowBackground(viewState.theme.background2)
             .listSectionSpacing(.zero)
             
-            Text("By creating a bot, you are agreeing to the [Acceptable Usage Policy](https://revolt.chat/aup).")
+            Text("By creating a bot, you are agreeing to the [Acceptable Usage Policy](https://stoat.chat/legal/community-guidelines).")
                 .listRowBackground(viewState.theme.background)
 
             

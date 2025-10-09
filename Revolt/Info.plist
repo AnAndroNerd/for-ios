@@ -15,8 +15,6 @@
 			</array>
 		</dict>
 	</array>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -28,12 +26,17 @@
 		<string>chat.revolt.app.voice-call</string>
 		<string>chat.revolt.app.channel-navigation</string>
 	</array>
+	<key>RTCAppGroupIdentifier</key>
+	<string>group.chat.revolt.app</string>
+	<key>RTCScreenSharingExtension</key>
+	<string>chat.revolt.app.BroadcastExtension</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
 		<string>remote-notification</string>
 		<string>voip</string>
 		<string>push-to-talk</string>
+		<string>audio</string>
 	</array>
 </dict>
 </plist>

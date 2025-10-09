@@ -24,6 +24,8 @@ enum WsMessage {
     case channel_stop_typing(ChannelTyping)
     case message_delete(MessageDeleteEvent)
     case channel_ack(ChannelAckEvent)
+    case voice_channel_join(VoiceChannelJoin)
+    case voice_channel_leave(VoiceChannelLeave)
     case message_react(MessageReactEvent)
     case message_unreact(MessageReactEvent)
     case message_append(MessageAppend)
@@ -52,6 +54,7 @@ enum WsMessage {
     case webhook_delete(WebhookDelete)
     case webhook_update(WebhookUpdate)
 
+    case user_voice_state_update(UserVoiceStateUpdate)
 }
 
 struct ReadyEvent: Decodable {
@@ -60,6 +63,20 @@ struct ReadyEvent: Decodable {
     var channels: [Channel]
     var members: [Member]
     var emojis: [Emoji]
+    var voice_states: [ChannelVoiceState]
+}
+
+struct UserVoiceState: Decodable, Identifiable {
+    var id: String
+    var is_receiving: Bool
+    var is_publishing: Bool
+    var screensharing: Bool
+    var camera: Bool
+}
+
+struct ChannelVoiceState: Decodable, Identifiable {
+    var id: String
+    var participants: [UserVoiceState]
 }
 
 struct MessageUpdateEventData: Decodable {
@@ -93,6 +110,16 @@ struct ChannelAckEvent: Decodable {
     var id: String
     var user: String
     var message_id: String
+}
+
+struct VoiceChannelJoin: Decodable {
+    var id: String
+    var state: UserVoiceState
+}
+
+struct VoiceChannelLeave: Decodable {
+    var id: String
+    var user: String
 }
 
 struct MessageReactEvent: Decodable {
@@ -343,6 +370,12 @@ struct WebhookDelete: Decodable {
     var id: String
 }
 
+struct UserVoiceStateUpdate: Decodable {
+    var id: String
+    var channel_id: String
+    var data: PartialUserVoiceUpdate
+}
+
 extension WsMessage: Decodable {
     enum CodingKeys: String, CodingKey { case type }
     enum Tag: String, Decodable {
@@ -385,13 +418,16 @@ extension WsMessage: Decodable {
              EmojiDelete,
              WebhookCreate,
              WebhookDelete,
-             WebhookUpdate
+             WebhookUpdate,
+             VoiceChannelJoin,
+             VoiceChannelLeave,
+             UserVoiceStateUpdate
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let singleValueContainer = try decoder.singleValueContainer()
-        
+
         switch try container.decode(Tag.self, forKey: .type) {
             case .Authenticated:
                 self = .authenticated
@@ -411,6 +447,10 @@ extension WsMessage: Decodable {
                 self = .message_delete(try singleValueContainer.decode(MessageDeleteEvent.self))
             case .ChannelAck:
                 self = .channel_ack(try singleValueContainer.decode(ChannelAckEvent.self))
+            case .VoiceChannelJoin:
+                self = .voice_channel_join(try singleValueContainer.decode(VoiceChannelJoin.self))
+            case .VoiceChannelLeave:
+                self = .voice_channel_leave(try singleValueContainer.decode(VoiceChannelLeave.self))
             case .MessageReact:
                 self = .message_react(try singleValueContainer.decode(MessageReactEvent.self))
             case .MessageUnreact:
@@ -473,6 +513,8 @@ extension WsMessage: Decodable {
                 self = .webhook_delete(try singleValueContainer.decode(WebhookDelete.self))
             case .WebhookUpdate:
                 self = .webhook_update(try singleValueContainer.decode(WebhookUpdate.self))
+            case .UserVoiceStateUpdate:
+                self = .user_voice_state_update(try singleValueContainer.decode(UserVoiceStateUpdate.self))
         }
     }
 }
@@ -485,7 +527,7 @@ enum WsState {
 
 class SendWsMessage: Encodable {
     var type: String
-    
+
     init(type: String) {
         self.type = type
     }
@@ -495,18 +537,18 @@ class Authenticate: SendWsMessage, CustomStringConvertible {
     private enum CodingKeys: String, CodingKey { case type, token }
 
     var token: String
-    
+
     init(token: String) {
         self.token = token
         super.init(type: "Authenticate")
     }
-    
+
     override func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(token, forKey: .token)
         try container.encode(type, forKey: .type)
     }
-    
+
     var description: String {
         return "Authenticate(token: \(token))"
     }
@@ -541,7 +583,7 @@ class WebSocketStream: ObservableObject {
     public func stop() {
         client.disconnect(closeCode: .zero)
     }
-    
+
     public func didReceive(event: WebSocketEvent) {
         switch event {
             case .connected(_):

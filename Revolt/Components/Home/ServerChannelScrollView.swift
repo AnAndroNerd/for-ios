@@ -14,6 +14,8 @@ struct ChannelListItem: View {
     var server: Server
     var channel: Channel
     
+    @State var updateVoiceState: Bool = false
+    
     var toggleSidebar: () -> ()
     
     @State var inviteSheetUrl: InviteUrl? = nil
@@ -50,16 +52,100 @@ struct ChannelListItem: View {
             
             viewState.selectChannel(inServer: server.id, withId: channel.id)
         } label: {
-            HStack {
-                ChannelIcon(channel: channel)
-                    .fontWeight(.medium)
-                    .opacity(isMuted ? 0.4 : 1)
+            VStack(alignment: .leading) {
+                HStack {
+                    ChannelIcon(channel: channel)
+                        .fontWeight(.medium)
+                        .opacity(isMuted ? 0.4 : 1)
+                    
+                    Spacer()
+                    
+                    if let unread = unread, !isMuted {
+                        UnreadCounter(unread: unread)
+                            .padding(.trailing)
+                    }
+                }
                 
-                Spacer()
-                
-                if let unread = unread, !isMuted {
-                    UnreadCounter(unread: unread)
-                        .padding(.trailing)
+                if let channelVoiceState = viewState.voiceStates[channel.id] {
+                    ForEach(channelVoiceState.values.compactMap({ participant in
+                        let user = viewState.users[participant.id]
+                        let member = viewState.members[server.id]![participant.id]
+                        
+                        if let user, let member {
+                            return (participant, user, member)
+                        } else {
+                            Task {
+                                if user == nil {
+                                    viewState.users[participant.id] = try! await viewState.http.fetchUser(user: participant.id).get()
+                                }
+                                
+                                if member == nil {
+                                    viewState.members[server.id]![participant.id] = try! await viewState.http.fetchMember(server: server.id, member: participant.id).get()
+                                }
+                                
+                                updateVoiceState.toggle()
+                            }
+                            
+                            return nil
+                        }
+                    }), id: \.0.id) { args in
+                        let (participant, user, member) = args
+                        
+                        Button {
+                            viewState.openUserSheet(user: user, member: member)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Avatar(user: user, width: 16, height: 16)
+                                Text(verbatim: user.display_name ?? user.username)
+                                    .font(.caption)
+                                
+                                Spacer()
+                                
+                                if participant.camera {
+                                    Image(systemName: "camera.fill")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
+                                }
+                                
+                                if participant.screensharing {
+                                    Image(systemName: "desktopcomputer")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
+                                }
+                                
+                                if !(member.can_receive ?? true) {
+                                    Image(systemName: "mic.slash.fill")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
+                                        .foregroundStyle(.red)
+                                    
+                                } else if !participant.is_publishing {
+                                    Image(systemName: "mic.slash.fill")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
+                                }
+                                
+                                if !(member.can_receive ?? true) {
+                                    Image("headphones.slash")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
+                                        .foregroundStyle(.red)
+                                    
+                                } else if !participant.is_receiving {
+                                    Image("headphones.slash")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.leading, 32)
                 }
             }
             .padding(8)
@@ -214,6 +300,8 @@ struct ServerChannelScrollView: View {
                     }
                     .padding(.bottom, 10)
                 }
+                .padding(.bottom, 10)
+
                                 
                 ForEach(nonCategoryChannels.compactMap({ viewState.channels[$0] })) { channel in
                     ChannelListItem(server: server, channel: channel, toggleSidebar: toggleSidebar)

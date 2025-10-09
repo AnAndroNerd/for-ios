@@ -223,7 +223,7 @@ struct MainApp: View {
             currentChannel: $viewState.currentChannel
         )
         .alert("Warning", isPresented: $alphaAlert, actions: {}, message: {
-            Text("This app is in very early alpha and is expected to be unfinished and crash in lots of places, if you wish for a stable expierence please use the web app for the time being.")
+            Text("This app is in very early alpha and is expected to be unfinished and crash in lots of places, if you wish for a stable experience please use the web app for the time being.")
         })
         .navigationDestination(for: NavigationDestination.self) { dest in
             switch dest {

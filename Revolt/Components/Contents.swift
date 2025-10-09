@@ -1246,7 +1246,7 @@ struct InnerContents: UIViewRepresentable {
             let attachment = NSTextAttachment()
             
             
-            KF.url(URL(string: "https://autumn.revolt.chat/emojis/\(id)")!)
+            KF.url(URL(string: "\(viewState.apiInfo!.features.autumn.url)/emojis/\(id)")!)
                 .placeholder(.none)
                 .appendProcessor(ResizingImageProcessor(referenceSize: CGSize(width: currentFont.lineHeight, height: currentFont.lineHeight), mode: .aspectFit))
                 .set(to: attachment, attributedView: textview)
@@ -1360,7 +1360,7 @@ struct InnerContents: UIViewRepresentable {
             }
         }
         
-        for match in attrString.string.matches(of: /(?:https?:\/\/)?revolt\.chat\/server\/(\w{26})\/channel\/(\w{26})\/(\w{26})/).reversed() {
+        for match in attrString.string.matches(of: /(?:https?:\/\/)?(?:revolt|stoat)\.chat\/server\/(\w{26})\/channel\/(\w{26})\/(\w{26})/).reversed() {
             let serverId = String(match.output.1)
             let channelId = String(match.output.2)
             let messageId = match.output.3

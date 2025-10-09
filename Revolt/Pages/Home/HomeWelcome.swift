@@ -41,7 +41,7 @@ struct HomeWelcome: View {
                 .padding(.horizontal, 32)
                 
                 VStack {
-                    HomeButton(title: "Discover Revolt", description: "Find a community based on your hobbies or interests.") {
+                    HomeButton(title: "Discover Stoat", description: "Find a community based on your hobbies or interests.") {
                         Image(systemName: "safari.fill")
                             .resizable()
                             .frame(width: 32, height: 32)
@@ -56,7 +56,7 @@ struct HomeWelcome: View {
                     } handle: {
                         viewState.path.append(NavigationDestination.invite("Testers"))
                     }
-                    HomeButton(title: "Donate to Revolt", description: "Support the project by donating - thank you") {
+                    HomeButton(title: "Donate to Stoat", description: "Support the project by donating - thank you") {
                         Image(systemName: "banknote")
                             .resizable()
                             .frame(width: 32, height: 20)

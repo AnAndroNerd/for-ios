@@ -80,7 +80,7 @@ struct AddBot: View {
             }
         
             VStack {
-                Text("Bots are not verified by Revolt.")
+                Text("Bots are not verified by Stoat.")
                 Text("The bot will not be granted any permissions.")
             }
             .font(.footnote)

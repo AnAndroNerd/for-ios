@@ -15,25 +15,99 @@ struct MaybeChannelView: View {
     @Binding var disableScroll: Bool
     @Binding var disableSidebar: Bool
     
+    func getRawChannelView(channel: Channel) -> AnyView {
+        let messages = Binding($viewState.channelMessages[channel.id])!
+        let server = currentSelection.id.map { viewState.servers[$0]! }
+        
+        switch channel {
+            case .voice_channel:
+                return AnyView(VoiceChannelView(
+                    channel: channel,
+                    server: server,
+                    toggleSidebar: toggleSidebar,
+                    disableScroll: $disableScroll,
+                    disableSidebar: $disableSidebar
+                ))
+            case .text_channel(let tc):
+                if tc.voice != nil {
+                    return AnyView(VoiceChannelView(
+                        channel: channel,
+                        server: server,
+                        toggleSidebar: toggleSidebar,
+                        disableScroll: $disableScroll,
+                        disableSidebar: $disableSidebar
+                    ))
+                } else {
+                    fallthrough
+                }
+            default:
+                return AnyView(MessageableChannelView(
+                    viewModel: MessageableChannelViewModel(
+                        viewState: viewState,
+                        channel: channel,
+                        server: server,
+                        messages: messages
+                    ),
+                    toggleSidebar: toggleSidebar,
+                    disableScroll: $disableScroll,
+                    disableSidebar: $disableSidebar
+                ))
+        }
+    }
+
+    
     var body: some View {
+        let server = currentSelection.id.map { viewState.servers[$0]! }
+        
         switch currentChannel {
             case .channel(let channelId):
-                if let channel = viewState.channels[channelId], let messages = Binding($viewState.channelMessages[channelId]) {
+                if let channel = viewState.channels[channelId] {
+                    getRawChannelView(channel: channel)
+                } else {
+                    Text("Unknown Channel")
+                        .onAppear {
+                            currentChannel = .home
+                        }
+                }
+                
+            case .force_textchannel(let channelId):
+                if let channel = viewState.channels[channelId] {
+                    let messages = Binding($viewState.channelMessages[channelId])!
+                    
                     MessageableChannelView(
                         viewModel: MessageableChannelViewModel(
                             viewState: viewState,
                             channel: channel,
-                            server: currentSelection.id.map { viewState.servers[$0]! },
+                            server: server,
                             messages: messages
                         ),
                         toggleSidebar: toggleSidebar,
                         disableScroll: $disableScroll,
                         disableSidebar: $disableSidebar
                     )
-
                 } else {
-                    Text("Unknown Channel :(")
+                    Text("Unknown Channel")
+                        .onAppear {
+                            currentChannel = .home
+                        }
                 }
+            
+            case .force_voicechannel(let channelId):
+                if let channel = viewState.channels[channelId] {
+                    VoiceChannelView(
+                        channel: channel,
+                        server: server,
+                        toggleSidebar: toggleSidebar,
+                        disableScroll: $disableScroll,
+                        disableSidebar: $disableSidebar
+                    )
+                } else {
+                    Text("Unknown Channel")
+                        .onAppear {
+                            currentChannel = .home
+                        }
+                }
+
             case .home:
                 HomeWelcome(toggleSidebar: toggleSidebar)
             case .friends:

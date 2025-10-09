@@ -52,6 +52,9 @@ struct Unread: Decodable, Identifiable {
     }
 }
 
+struct VoiceChannelToken: Decodable {
+    var token: String
+}
 struct AuthAccount: Decodable {
     var _id: String
     var email: String
@@ -184,3 +187,10 @@ extension Tuple2: Codable where A: Codable, B: Codable {
 }
 
 typealias SettingsResponse = [String: Tuple2<Int, String>]
+
+struct PartialUserVoiceUpdate: Decodable {
+    var is_receiving: Bool?
+    var is_publishing: Bool?
+    var screensharing: Bool?
+    var camera: Bool?
+}

@@ -4,6 +4,7 @@ import Alamofire
 import ULID
 import Collections
 import Sentry
+import LiveKit
 import Types
 import UserNotifications
 import KeychainAccess
@@ -91,6 +92,8 @@ enum MainSelection: Hashable, Codable {
 
 enum ChannelSelection: Hashable, Codable {
     case channel(String)
+    case force_textchannel(String)
+    case force_voicechannel(String)
     case home
     case friends
     case noChannel
@@ -120,7 +123,7 @@ enum NavigationDestination: Hashable, Codable {
 struct UserMaybeMember: Identifiable {
     var user: Types.User
     var member: Member?
-    
+
     var id: String { user.id }
 }
 
@@ -237,6 +240,8 @@ public class ViewState: ObservableObject {
             }
         }
     }
+    
+    @Published var voiceStates: [String: [String: UserVoiceState]] = [:]
 
     @Published var state: ConnectionState = .connecting
     @Published var forceMainScreen: Bool = false
@@ -246,6 +251,8 @@ public class ViewState: ObservableObject {
     @Published var isOnboarding: Bool = false
     @Published var unreads: [String: Unread] = [:]
     @Published var currentUserSheet: UserMaybeMember? = nil
+    @Published var currentVoiceChannel: String? = nil
+    @Published var currentVoice: Room? = nil
     @Published var atTopOfChannel: Set<String> = []
 
     @Published var currentSelection: MainSelection {
@@ -270,7 +277,7 @@ public class ViewState: ObservableObject {
             UserDefaults.standard.set(try! JSONEncoder().encode(theme), forKey: "theme")
         }
     }
-    
+
     @Published var currentLocale: Locale? {
         didSet {
             UserDefaults.standard.set(try! JSONEncoder().encode(currentLocale), forKey: "locale")
@@ -344,7 +351,7 @@ public class ViewState: ObservableObject {
             self.forceMainScreen = true
         }
 
-        self.users["00000000000000000000000000"] = User(id: "00000000000000000000000000", username: "Revolt", discriminator: "0000")
+        self.users["00000000000000000000000000"] = User(id: "00000000000000000000000000", username: "Stoat", discriminator: "0000")
         self.http.token = self.sessionToken
         
         self.userSettingsStore.viewState = self // this is a cursed workaround
@@ -375,9 +382,9 @@ public class ViewState: ObservableObject {
         this.channels["3"] = .dm_channel(DMChannel(id: "3", active: true, recipients: ["0", "1"]))
         this.messages["01HD4VQY398JNRJY60JDY2QHA5"] = Message(id: "01HD4VQY398JNRJY60JDY2QHA5", content: String(repeating: "HelloWorld", count: 100), author: "0", channel: "0", mentions: ["0"])
         this.messages["01HDEX6M2E3SHY8AC2S6B9SEAW"] = Message(id: "01HDEX6M2E3SHY8AC2S6B9SEAW", content: "reply", author: "0", channel: "0", replies: ["01HD4VQY398JNRJY60JDY2QHA5"])
+        this.members["0"] = ["0": Member(id: MemberId(server: "0", user: "0"), joined_at: "", can_publish: true, can_receive: true)]
         this.messages["01HZ3CFEG10WH52YVXG34WZ9EM"] = Message(id: "01HZ3CFEG10WH52YVXG34WZ9EM", content: "Followup", author: "0", channel: "0")
         this.channelMessages["0"] = ["01HD4VQY398JNRJY60JDY2QHA5", "01HDEX6M2E3SHY8AC2S6B9SEAW", "01HZ3CFEG10WH52YVXG34WZ9EM"]
-        this.members["0"] = ["0": Member(id: MemberId(server: "0", user: "0"), joined_at: "")]
         this.emojis = ["0": Emoji(id: "01GX773A8JPQ0VP64NWGEBMQ1E", parent: .server(EmojiParentServer(id: "0")), creator_id: "0", name: "balls")]
         this.currentSelection = .server("0")
         this.currentChannel = .channel("0")
@@ -389,7 +396,19 @@ public class ViewState: ObservableObject {
 
         this.currentlyTyping["0"] = ["0", "1", "2", "3", "4"]
 
-        this.apiInfo = ApiInfo(revolt: "0.6.6", features: ApiFeatures(captcha: CaptchaFeature(enabled: true, key: "3daae85e-09ab-4ff6-9f24-e8f4f335e433"), email: true, invite_only: false, autumn: RevoltFeature(enabled: true, url: "https://autumn.revolt.chat"), january: RevoltFeature(enabled: true, url: "https://jan.revolt.chat"), voso: VortexFeature(enabled: true, url: "https://vortex.revolt.chat", ws: "wss://vortex.revolt.chat")), ws: "wss://ws.revolt.chat", app: "https://app.revolt.chat", vapid: "BJto1I_OZi8hOkMfQNQJfod2osWBqcOO7eEOqFMvCfqNhqgxqOr7URnxYKTR4N6sR3sTPywfHpEsPXhrU9zfZgg=")
+        this.apiInfo = ApiInfo(
+            revolt: "0.6.6",
+            features: ApiFeatures(
+                captcha: CaptchaFeature(enabled: true, key: "3daae85e-09ab-4ff6-9f24-e8f4f335e433"),
+                email: true,
+                invite_only: false,
+                autumn: RevoltFeature(enabled: true, url: "https://cdn.stoatusercontent.com"),
+                january: RevoltFeature(enabled: true, url: "https://proxy.stoatusercontent.com"),
+                livekit: LiveKitFeature(enabled: true, nodes: [])),
+            ws: "wss://events.stoat.chat",
+            app: "https://stoat.chat",
+            vapid: "BJto1I_OZi8hOkMfQNQJfod2osWBqcOO7eEOqFMvCfqNhqgxqOr7URnxYKTR4N6sR3sTPywfHpEsPXhrU9zfZgg="
+        )
 
         return this
     }
@@ -407,13 +426,13 @@ public class ViewState: ObservableObject {
     }
 
     func signIn(mfa_ticket: String, mfa_response: [String: String], callback: @escaping((LoginState) -> ())) async {
-        let body = ["mfa_ticket": mfa_ticket, "mfa_response": mfa_response, "friendly_name": "Revolt iOS"] as [String : Any]
+        let body = ["mfa_ticket": mfa_ticket, "mfa_response": mfa_response, "friendly_name": "Stoat iOS"] as [String : Any]
 
         await innerSignIn(body, callback)
     }
 
     func signIn(email: String, password: String, callback: @escaping((LoginState) -> ())) async {
-        let body = ["email": email, "password": password, "friendly_name": "Revolt IOS"]
+        let body = ["email": email, "password": password, "friendly_name": "Stoat IOS"]
 
         await innerSignIn(body, callback)
     }
@@ -526,7 +545,7 @@ public class ViewState: ObservableObject {
     func formatUrl(with: File) -> String {
         "\(apiInfo!.features.autumn.url)/\(with.tag)/\(with.id)"
     }
-    
+
     func formatUrl(fromEmoji emojiId: String) -> String {
         "\(apiInfo!.features.autumn.url)/emojis/\(emojiId)"
     }
@@ -586,10 +605,12 @@ public class ViewState: ObservableObject {
     }
 
     func onEvent(_ event: WsMessage) async {
+        print(event)
+        
         switch event {
             case .ready(let event):
                 let processReadySpan = launchTransaction.startChild(operation: "processReady")
-                
+
                 for channel in event.channels {
                     channels[channel.id] = channel
                     
@@ -632,9 +653,15 @@ public class ViewState: ObservableObject {
                 for unread in unreads {
                     self.unreads[unread.id.channel] = unread
                 }
-                
+
                 for emoji in event.emojis {
                     self.emojis[emoji.id] = emoji
+                }
+
+                for voiceState in event.voice_states {
+                    for userVoiceState in voiceState.participants {
+                        self.voiceStates[voiceState.id, default: [:]][userVoiceState.id] = userVoiceState
+                    }
                 }
 
                 state = .connected
@@ -747,7 +774,17 @@ public class ViewState: ObservableObject {
             case .channel_ack(let e):
                 unreads[e.id]?.last_id = e.message_id
                 unreads[e.id]?.mentions?.removeAll { $0 <= e.message_id }
-            
+
+            case .voice_channel_join(let e):
+                voiceStates[e.id, default: [:]][e.state.id] = e.state
+
+            case .voice_channel_leave(let e):
+                voiceStates[e.id]?.removeValue(forKey: e.user)
+
+                if voiceStates[e.id]?.isEmpty ?? false {
+                    voiceStates.removeValue(forKey: e.id)
+                }
+                
             case .message_react(let e):
                 if var message = messages[e.id] {
                     var reactions = message.reactions ?? [:]
@@ -1123,6 +1160,27 @@ public class ViewState: ObservableObject {
                 ()
             case .webhook_update(let e):
                 ()
+                            
+            case .user_voice_state_update(let e):
+                if var userState = voiceStates[e.channel_id]?[e.id] {
+                    if let is_receiving = e.data.is_receiving {
+                        userState.is_receiving = is_receiving
+                    }
+                    
+                    if let is_publishing = e.data.is_publishing {
+                        userState.is_publishing = is_publishing
+                    }
+                    
+                    if let screensharing = e.data.screensharing {
+                        userState.screensharing = screensharing
+                    }
+                    
+                    if let camera = e.data.camera {
+                        userState.camera = camera
+                    }
+                    
+                    voiceStates[e.channel_id]![e.id] = userState
+                }
         }
     }
 
@@ -1212,13 +1270,13 @@ public class ViewState: ObservableObject {
 
         return nil
     }
-    
+
     func openUserSheet(withId id: String, server: String?) {
         if let user = users[id] {
             let member = server
                 .flatMap { members[$0] }
                 .flatMap { $0[id] }
-            
+
             currentUserSheet = UserMaybeMember(user: user, member: member)
         }
     }
